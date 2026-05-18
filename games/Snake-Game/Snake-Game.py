@@ -155,8 +155,23 @@ def generate_food():
     food.color(current_food["color"])
     food.shapesize(current_food["size"])
 
-    x = random.randint(-18, 18) * 15
-    y = random.randint(-18, 18) * 15
+    while True:
+        x = random.randint(-18, 18) * 15
+        y = random.randint(-18, 18) * 15
+        
+        # Check if the coordinate is occupied by the snake's head
+        if head.distance(x, y) < 15:
+            continue
+            
+        # Check if the coordinate is occupied by any body part
+        occupied = False
+        for part in parts:
+            if part.distance(x, y) < 15:
+                occupied = True
+                break
+        
+        if not occupied:
+            break
 
     food.goto(x, y)
 
