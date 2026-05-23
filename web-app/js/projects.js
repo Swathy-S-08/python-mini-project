@@ -1195,136 +1195,169 @@ function getCalculatorHTML() {
         </style>
     `;
 }
-let calculatorKeyboardAdded = false;
+
 function initCalculator() {
-    const display = document.getElementById('calcDisplay');
-    let currentValue = '0';
-    let previousValue = '';
-    let operation = '';
-    
-    document.querySelectorAll('.calc-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const value = btn.getAttribute('data-value');
-            const action = btn.getAttribute('data-action');
-            
-            if (value) {
-                handleNumber(value);
-            } else if (action) {
-                handleAction(action);
+    const display = document.getElementById("calcDisplay");
+    if (!display) return;
+    let expression = "";
+
+    function update() {
+        display.textContent = expression || "0";
+    }
+
+    function format(expr) {
+        return expr
+            .replace(/÷/g, "/")
+            .replace(/×/g, "*")
+            .replace(/\^/g, "**");
+    }
+
+    function safeEval(expr) {
+        try {
+            if (!expr) return "";
+            let result = eval(format(expr));
+            if (result === undefined) return "";
+            if (isNaN(result)) return "Error";
+            return String(result);
+        } catch {
+            return "Error";
+        }
+    }
+
+    function applyFunction(type) {
+        try {
+            let value = eval(format(expression || "0"));
+            let result;
+            switch (type) {
+                case "sin": result = Math.sin(value); break;
+                case "cos": result = Math.cos(value); break;
+                case "tan": result = Math.tan(value); break;
+                case "sqrt": result = Math.sqrt(value); break;
+                case "square": result = value * value; break;
+                case "inv": result = 1 / value; break; 
             }
+            if (isNaN(result)) return "Error"; 
+            return String(result);
+        } catch {
+            return "Error";
+        }
+    }
+
+ 
+    function clearIfFinished() {
+        if (expression === "Error" || expression === "NaN") {
+            expression = "";
+        }
+    }
+
+    document.querySelectorAll(".calc-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            clearIfFinished();
             
-            updateDisplay();
+            const value = btn.dataset.value;
+            const action = btn.dataset.action;
+
+            if (value !== undefined) {
+                if (value === ".") {
+               
+                    const lastOperand = expression.split(/[\+\-\*\/\^\(\)]/).pop();
+                    if (lastOperand.includes(".")) return;
+                }
+                expression += value;
+                update();
+                return;
+            }
+
+            if (!action) return;
+
+    
+            switch (action) {
+                case "clear":
+                    expression = "";
+                    break;
+                case "delete":
+                    if (expression === "Infinity" || expression === "-Infinity") {
+                        expression = "";
+                    } else {
+                        expression = expression.slice(0, -1);
+                    }
+                    break;
+                case "=":
+                    expression = safeEval(expression);
+                    break;
+                case "sin":
+                case "cos":
+                case "tan":
+                case "sqrt":
+                case "square":
+                case "inv":
+                    expression = applyFunction(action);
+                    break;
+                case "^":
+                case "+":
+                case "-":
+                case "*":
+                case "/":
+        
+                    const lastChar = expression.slice(-1);
+                    if (["+", "-", "*", "/", "^"].includes(lastChar)) {
+                        expression = expression.slice(0, -1) + action;
+                    } else {
+                        expression += action;
+                    }
+                    break;
+                default:
+                    expression += action;
+            }
+            update();
         });
     });
-   if (!calculatorKeyboardAdded) {
+
     document.addEventListener("keydown", (e) => {
-        const display = document.getElementById("calcDisplay");
-        if (!display) return;
-
         const key = e.key;
+        if (!document.getElementById("calcDisplay")) return;
 
-        if (
-            key === "Enter" ||
-            key === " " ||
-            key === "Backspace" ||
-            key === "Escape" ||
-            key === "=" ||
-            key === "+" ||
-            key === "-" ||
-            key === "*" ||
-            key === "/" ||
-            key === "^" ||
-            key === "." ||
-            /^[0-9]$/.test(key) ||
-            key.startsWith("Arrow")
-        ) {
+        // Whitelist allowed keys to prevent typing letters
+        const allowedKeys = ["Enter", "Backspace", "Escape", "=", "+", "-", "*", "/", "^", ".", "(", ")"];
+        if (allowedKeys.includes(key) || /^[0-9]$/.test(key)) {
             e.preventDefault();
+        } else {
+            return;
         }
+
+        clearIfFinished();
 
         if (/^[0-9]$/.test(key)) {
-            handleNumber(key);
-        } 
-        else if (key === ".") {
-            handleNumber(".");
-        } 
-        else if (["+", "-", "*", "/"].includes(key)) {
-            handleAction(key);
-        } 
-        else if (key === "^") {
-            handleAction("**");
-        } 
-        else if (key === "Enter" || key === "=") {
-            handleAction("=");
-        } 
-        else if (key === "Backspace") {
-            handleAction("delete");
-        } 
-        else if (key === "Escape" || key.toLowerCase() === "c") {
-            handleAction("clear");
+            expression += key;
+        } else if (key === ".") {
+            const lastOperand = expression.split(/[\+\-\*\/\^\(\)]/).pop();
+            if (!lastOperand.includes(".")) {
+                expression += ".";
+            }
+        } else if (["+", "-", "*", "/", "^"].includes(key)) {
+            const lastChar = expression.slice(-1);
+            if (["+", "-", "*", "/", "^"].includes(lastChar)) {
+                expression = expression.slice(0, -1) + key;
+            } else {
+                expression += key;
+            }
+        } else if (key === ")" || key === "(") {
+            expression += key;
+        } else if (key === "Enter" || key === "=") {
+            expression = safeEval(expression);
+        } else if (key === "Backspace") {
+            if (expression === "Infinity" || expression === "-Infinity") {
+                expression = "";
+            } else {
+                expression = expression.slice(0, -1);
+            }
+        } else if (key === "Escape" || key.toLowerCase() === "c") {
+            expression = "";
         }
-
-        updateDisplay();
+        update();
     });
 
-    calculatorKeyboardAdded = true;
-}
-
-    function handleNumber(num) {
-        if (currentValue === '0' || currentValue === 'Error') {
-            currentValue = num;
-        } else {
-            currentValue += num;
-        }
-    }
-    
-    function handleAction(action) {
-        if (action === 'clear') {
-            currentValue = '0';
-            previousValue = '';
-            operation = '';
-        } else if (action === 'delete') {
-            currentValue = currentValue.slice(0, -1) || '0';
-        } else if (action === '=') {
-            calculate();
-        } else {
-            if (previousValue && operation) {
-                calculate();
-            }
-            previousValue = currentValue;
-            currentValue = '0';
-            operation = action;
-        }
-    }
-    
-    function calculate() {
-        try {
-            const prev = parseFloat(previousValue);
-            const curr = parseFloat(currentValue);
-            let result;
-            
-            switch (operation) {
-                case '+': result = prev + curr; break;
-                case '-': result = prev - curr; break;
-                case '*': result = prev * curr; break;
-                case '/': result = prev / curr; break;
-                case '**': result = Math.pow(prev, curr); break;
-                default: return;
-            }
-            
-            currentValue = result.toString();
-            previousValue = '';
-            operation = '';
-        } catch (e) {
-            currentValue = 'Error';
-        }
-    }
-    
-    function updateDisplay() {
-    const display = document.getElementById('calcDisplay');
-    if (display) {
-        display.textContent = currentValue;
-    }
-}
+    update();
 }
 
 // ============================================
